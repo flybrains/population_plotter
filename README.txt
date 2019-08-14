@@ -1,4 +1,11 @@
 ##################################################################################
+INSTALL DEPENDENCIES
+##################################################################################
+Install Python 3.6.7 and virtualenv
+Add dependencies with
+$ pip install -r requirements.txt
+
+##################################################################################
 TRIMMING VIDEO TO STABLE PART
 ##################################################################################
 Tracking will only work well if the frame does not shift mid-video.
@@ -41,8 +48,7 @@ The important arguments are:
 	Enter 0 if you don't want a video
 
 
-COMPLETE EXAMPLE OF COMMAND
-
+FULL EXAMPLE COMMAND:
 python generate_traces.py my_videos/erecta.mp4 --new_bg True --temp_img_dir /media/my_external_drive/img_folder --vid_len 30
 
 All figures will be made and stored in population_plotter/data/{vidname}/figures
