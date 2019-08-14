@@ -3,7 +3,7 @@ INSTALL DEPENDENCIES
 ##################################################################################
 Install Python 3.6.7 and virtualenv
 Add dependencies with
-$ pip install -r requirements.txt
+	$ pip install -r requirements.txt
 
 ##################################################################################
 TRIMMING VIDEO TO STABLE PART
@@ -49,7 +49,7 @@ The important arguments are:
 
 
 FULL EXAMPLE COMMAND:
-$ python generate_traces.py my_videos/ere.mp4 --new_bg True --temp_img_dir /media/my_external_drive/img_folder --vid_len 30
+	$ python generate_traces.py my_videos/ere.mp4 --new_bg True --temp_img_dir /media/my_external_drive/img_folder --vid_len 30
 
 All figures will be made and stored in population_plotter/data/{vidname}/figures
 
