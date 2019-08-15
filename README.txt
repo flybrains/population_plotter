@@ -1,10 +1,17 @@
 ##################################################################################
+INSTALL DEPENDENCIES
+##################################################################################
+Install Python 3.6.7 and virtualenv
+Add dependencies with
+	$ pip install -r requirements.txt
+
+##################################################################################
 TRIMMING VIDEO TO STABLE PART
 ##################################################################################
 Tracking will only work well if the frame does not shift mid-video.
 To trim out the first part of the video where the frame is shifting, use the following command in Linux:
 
-	ffmpeg -ss 00:00:00 -i input_file.mp4 -c copy output_name.mp4
+	$ ffmpeg -ss 00:00:00 -i input_file.mp4 -c copy output_name.mp4
 
 Where 00:00:00 is replaced with the hours, minutes, and seconds of the starting point of the stable part of video
 Example: 00:03:45 if the video is stable at 3m45s
@@ -15,7 +22,7 @@ Example:
 	output_name.mp4 = /home/patrick/Desktop/my_videos/myHourLongVideo_SHORTENED.mp4
 
 FULL EXAMPLE COMMAND:
-ffmpeg -ss 00:03:45 -i /home/patrick/Desktop/my_videos/myHourLongVideo.mp4 -c copy /home/patrick/Desktop/my_videos/myHourLongVideo_SHORTENED.mp4
+	$ ffmpeg -ss 00:03:45 -i /home/patrick/Desktop/my_videos/myHourLongVideo.mp4 -c copy 	/home/patrick/Desktop/my_videos/myHourLongVideo_SHORTENED.mp4
 
 ##################################################################################
 RUNNING ANALYSIS
@@ -41,9 +48,8 @@ The important arguments are:
 	Enter 0 if you don't want a video
 
 
-COMPLETE EXAMPLE OF COMMAND
-
-python generate_traces.py my_videos/erecta.mp4 --new_bg True --temp_img_dir /media/my_external_drive/img_folder --vid_len 30
+FULL EXAMPLE COMMAND:
+	$ python generate_traces.py my_videos/ere.mp4 --new_bg True --temp_img_dir /media/my_external_drive/img_folder --vid_len 30
 
 All figures will be made and stored in population_plotter/data/{vidname}/figures
 
