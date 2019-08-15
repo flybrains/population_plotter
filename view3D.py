@@ -65,5 +65,4 @@ if __name__=='__main__':
 	folder, sigma, downsample, scale_to = parse_args()
 	max_scale = get_max_scale(scale_to, downsample, sigma)
 	instance_mat = load_mat(folder)
-	max_scale=200
 	make_density_plot(instance_mat, sigma, downsample, max_scale)
