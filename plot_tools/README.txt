@@ -50,8 +50,8 @@ The usage is as follows:
 
 	arguments:
   	  path_to_data_folder.....Address of data folder from a tracked video.
-															This can only process a single video, so do not
-															use [ ] brackets and comma separation.
+			          This can only process a single video, so do not
+			          use [ ] brackets and comma separation.
 
 	Example:
 	>> python plot_tools.py activity /home/path/to/data/video1
