@@ -5,12 +5,14 @@ import cv2
 import argparse
 import scipy
 import itertools
+import pandas as pd
 import scipy.ndimage as nd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib.cm as cm
+import seaborn as sns
 
 def parse_args():
 	parser = argparse.ArgumentParser()
@@ -181,40 +183,42 @@ if __name__=='__main__':
 		process_and_smooth(dist_metrics, activity_data_dir)
 		print('Raw activity data and plots have been generated and stored at {}'.format(os.path.join(activity_data_dir)))
 
+
 	if program=='color':
 		color_data_dir = make_color_data_dir(path_to_folder)
 		fShape = get_frame_shape(path_to_folder)
 		stats_path = os.path.join(path_to_folder, 'stats_trimmed.txt')
 		coord_pairs = convert_log_to_coord_pairs(stats_path)
-
 		# Color Gradient Stuff
-		length = len(coord_pairs)
-		NUM_VALS = length
-		COL = MplColorHelper('cool', 0, NUM_VALS)
-		color_vals = [COL.get_rgb(e) for e in range(length)]
-		color_vals = itertools.cycle(color_vals)
+		NUM_VALS = len(coord_pairs)
+		spacing = 100
+		COL = MplColorHelper('cool', 0, spacing)
+		color_vals = [COL.get_rgb(e) for e in range(spacing)]
+		final_vals = []
+		for cv in color_vals:
+			for j in range(int(NUM_VALS/spacing)):
+				final_vals.append(cv)
+		if len(final_vals) < NUM_VALS:
+			fv0 = final_vals[-1]
+			for j in range(NUM_VALS-len(final_vals)):
+				final_vals.append(fv0)
 
 		canvas = np.zeros(fShape)
-
 		for idx, row in enumerate(coord_pairs):
-			col_val = next(color_vals)[:-1]
+			col_val = final_vals[idx]
 			for pt in row:
 				cv2.circle(canvas, (pt[0],pt[1]), 1,(col_val[2],col_val[1],col_val[0]),-1)
-
-		#cv2.imshow('c', canvas)
 		cv2.waitKey(0)
 		cv2.imwrite(os.path.join(color_data_dir,'_colored_traces.jpg'), canvas*255)
-
 		print('A color-shifted trace has been generated and stored at {}'.format(os.path.join(color_data_dir,'_colored_traces.jpg')))
 
 	if program=='heatmap':
-
+		# Make composite instance map
 		sigma = float(sigma)
 		if bw=="True":
 			bw = True
 		else:
 			bw=False
-
 		activity_data_dir = make_multi_data_dir(save_dir)
 		list_of_instance_frames = [load_pixel_instances(os.path.join(e, 'pixel_instances.npy')) for e in paths_to_folders]
 		shapes = [e.shape for e in list_of_instance_frames]
@@ -228,5 +232,42 @@ if __name__=='__main__':
 		composite_instance_map = np.zeros((minx, miny))
 		for frame in list_of_instance_frames:
 			composite_instance_map += frame
+
+		# Process data to remove outliers
+		print('Removing outliers')
+		cim = list(np.ravel(composite_instance_map))
+		from collections import Counter
+		hits = [e[0] for e in Counter(cim).most_common()]
+		hits = sorted(hits)
+
+		thresh  = hits[int(0.6*len(hits))]
+		composite_instance_map[composite_instance_map > thresh]=thresh
+
+		#Make transformed dataset for plotting
+		print('Transforming data for plotting')
+		x = []
+		y = []
+		for i in range(composite_instance_map.shape[0]):
+			for j in range(composite_instance_map.shape[1]):
+				if composite_instance_map[i,j]!=0.0:
+					value = int(composite_instance_map[i,j])
+					for k in range(value):
+						x.append(i)
+						y.append(j)
+		d = {'x': x, 'y': y}
+		df = pd.DataFrame(data=d)
+
+		# Make heatmap
+		print('Making density plot')
 		make_density_plot(composite_instance_map, activity_data_dir, sigma, bw=bw)
-		print('A heatmap of {} trials has been generated and stored at {}'.format(len(list_of_instance_frames), activity_data_dir+'/_heatmap.jpg'))
+
+		# Make hex plot
+		print('Building seaborn hex plot')
+
+		grid = sns.jointplot(x=df.y, y=df.x, kind="hex", color="r")
+		grid.fig.set_figwidth(7)
+		grid.fig.set_figheight(5)
+		grid.savefig(os.path.join(activity_data_dir, '_hexmap.jpg'), dpi=300)
+		print('Done building seaborn hex plot')
+
+		print('A heatmap and hexagonal pixelmap of {} trials has been generated and stored at {}'.format(len(list_of_instance_frames), activity_data_dir))
