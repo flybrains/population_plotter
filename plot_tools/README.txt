@@ -38,7 +38,7 @@ The usage is as follows:
 																use [ ] brackets and comma separation.
 
 	Example:
-	>> python plot_tools.py heatmap /home/path/to/data/video1
+	>> python plot_tools.py color_through_time /home/path/to/data/video1
 
 
 ##################################################################################
