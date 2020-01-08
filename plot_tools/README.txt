@@ -29,7 +29,7 @@ The usage is as follows:
 COLORED TRACES THROUGH TIME
 ##################################################################################
 To generate position traces for a single video in which the trace changes from blue
-to pink as time passes, use the color_through_time program.
+to pink as time passes, use the color program.
 The usage is as follows:
 
 	arguments:
@@ -38,7 +38,7 @@ The usage is as follows:
 																use [ ] brackets and comma separation.
 
 	Example:
-	>> python plot_tools.py color_through_time /home/path/to/data/video1
+	>> python plot_tools.py color /home/path/to/data/video1
 
 
 ##################################################################################
