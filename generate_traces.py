@@ -1,5 +1,6 @@
 import os
 import csv
+from tqdm import tqdm
 import argparse
 import _pickle as pickle
 from shutil import copyfile
@@ -17,9 +18,8 @@ import moviepy
 from moviepy.editor import ImageSequenceClip
 
 class CropInfo(object):
-	def __init__(self, r, Ma):
+	def __init__(self, r):
 		self.r  = r
-		self.Ma = Ma
 
 def parse_args():
 	parser = argparse.ArgumentParser()
@@ -34,7 +34,7 @@ def parse_args():
 		new_bg=True
 	return args.video, new_bg, args.temp_img_dir, args.vid_len
 
-def get_bg_avg(video_address, Ma, r):
+def get_bg_avg(video_address, r):
 
 	cap = cv2.VideoCapture(video_address)
 	_, frame =cap.read()
@@ -45,14 +45,12 @@ def get_bg_avg(video_address, Ma, r):
 	frameIdxs = np.linspace(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)-100), num=depth)
 	frameIdxs = [int(e) for e in frameIdxs]
 
-	for idx,i in enumerate(frameIdxs):
-		print('{} % Done computing background'.format(int(100*(idx/(len(frameIdxs))))))
+	print("Step 1: Computing background")
+	for idx,i in enumerate(tqdm(frameIdxs)):
 		cap.set(cv2.CAP_PROP_POS_FRAMES, i)
 		_, frame = cap.read()
 
 		rows,cols = frame.shape[:2]
-		frame = cv2.warpAffine(frame,Ma,(cols,rows))
-
 		frame = frame[r[1]:r[3]+r[1], r[0]:r[2]+r[0],:]
 
 		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -63,7 +61,7 @@ def get_bg_avg(video_address, Ma, r):
 	bg = bg.astype(np.uint8)
 	return bg
 
-def make_subbed_frames(video_address, bg, Ma, r, results_dir, area_LOW=100, area_HIGH=400, display_tracking=False):
+def make_subbed_frames(video_address, bg, r, results_dir, area_LOW=100, area_HIGH=400, display_tracking=False):
 	cap = cv2.VideoCapture(video_address)
 	_, first_frame = cap.read()
 	cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -74,18 +72,14 @@ def make_subbed_frames(video_address, bg, Ma, r, results_dir, area_LOW=100, area
 	instance_counter = np.zeros((first_frame.shape[0], first_frame.shape[1]))
 
 	lastGood = []
-
-	for i in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
-		print(i,'\t',int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+	print("Step 2: Tracking")
+	for i in tqdm(range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))):
 		ret, frame = cap.read()
 
 		if ret:
 
 			rows,cols = frame.shape[:2]
-			frame = cv2.warpAffine(frame,Ma,(cols,rows))
-
 			frame = frame[r[1]:r[3]+r[1], r[0]:r[2]+r[0],:]
-
 			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 			frame=frame-bg + 10
@@ -149,52 +143,24 @@ def make_new_bg_and_info(video_address, results_dir):
 	cap = cv2.VideoCapture(video_address)
 	_, frame1 = cap.read()
 	rows,cols = frame1.shape[:2]
+	r = pickROI(frame1)
 
-	print('\n--------------------------------------------------------------')
-	print('Enter a value to rotate the frame by, and press ENTER to see it.')
-	print('When the box is properly aligned, enter Y to continue')
-	print('--------------------------------------------------------------')
-	fixed = False
-	rows,cols = frame1.shape[:2]
-	lastVal = 0
-	while fixed==False:
-
-		Ma = cv2.getRotationMatrix2D((cols/2,rows/2),lastVal,1)
-		testFrame = cv2.warpAffine(frame1,Ma,(cols,rows))
-		cv2.imshow('Rotation',testFrame)
-		cv2.waitKey(1000)
-
-		rinput = input('ENTER ROTATION VAL OR Y HERE >> ')
-		cv2.destroyAllWindows()
-
-		if rinput=='Y':
-			fixed = True
-		else:
-			lastVal = float(rinput)
-
-	rotVal = lastVal
-
-	Ma = cv2.getRotationMatrix2D((cols/2,rows/2),rotVal,1)
-	cap.release()
-	r = pickROI(testFrame)
-
-	bg = get_bg_avg(video_address, Ma, r)
+	bg = get_bg_avg(video_address, r)
 	save_bg_mat(os.path.join(results_dir, 'bg_mat.npy'), bg)
 	bg = load_bg_mat(os.path.join(results_dir, 'bg_mat.npy'))
 
-	info = CropInfo(r,Ma)
+	info = CropInfo(r)
 	with open(os.path.join(results_dir, 'CropInfo.obj'), 'wb') as fp:
 		pickle.dump(info, fp)
 
-	return Ma, r, bg
+	return r, bg
 
 def get_old_bg_and_info(results_dir):
 	with open(os.path.join(results_dir, 'CropInfo.obj'), 'rb') as fp:
 		info = pickle.load(fp)
-	Ma = info.Ma
 	r = info.r
 	bg = load_bg_mat(os.path.join(results_dir, 'bg_mat.npy'))
-	return Ma, r, bg
+	return r, bg
 
 def get_save_interval(video_len, n_frames):
 	return int(int(n_frames)/(60*int(video_len)))
@@ -221,8 +187,8 @@ def make_trace_frames(results_dir, video_len, bg, temp_img_dir):
 	blank = 255*np.ones(shape=[bg.shape[0], bg.shape[1], 3])
 	blank = blank.astype(np.uint8)
 
-	for idx, row in enumerate(pair_log):
-		print("Writing {} of {}".format(idx, len(pair_log)))
+	print("Step 3: Generating Frames")
+	for idx, row in enumerate(tqdm(pair_log)):
 		overlay = blank.copy()
 		for pt in row:
 			cv2.circle(overlay, (pt[0],pt[1]), 1,(0,0,0),-1)
@@ -242,7 +208,7 @@ def write_videofile(temp_img_dir, results_dir):
 	clip.write_videofile(os.path.join(results_dir, '_output_video.mp4'), audio=False)
 	return None
 
-def make_density_plot(results_dir, sigma, plane=True, surface=True):
+def make_density_plot(results_dir, sigma, plane=False, surface=False):
 
 	pixel_instances = np.load(os.path.join(results_dir, 'pixel_instances.npy'))
 	pixel_instances_small = cv2.resize(pixel_instances, None, fx=0.25, fy=0.25)
@@ -303,23 +269,24 @@ if __name__=='__main__':
 
 	# If making a new background is necessary, initiate the sequence
 	if new_bg:
-		Ma, r, bg = make_new_bg_and_info(video_address, results_dir)
+		r, bg = make_new_bg_and_info(video_address, results_dir)
 	else:
-		Ma, r, bg = get_old_bg_and_info(results_dir)
+		r, bg = get_old_bg_and_info(results_dir)
 
 	# Start main routine
-	make_subbed_frames(video_address, bg, Ma, r, results_dir,
-	 					area_LOW=100,
+	make_subbed_frames(video_address, bg, r, results_dir,
+	 					area_LOW=50,
 						area_HIGH=400,
 						display_tracking=False)
 
 	# Make last frame plot and video if desired
 	lastFrame = make_trace_frames(results_dir, vid_len, bg, temp_img_dir)
 	cv2.imwrite(os.path.join(results_dir, '_paths.jpg'), lastFrame)
+	#print("Step 4: Creating Video File")
 	if int(vid_len)!=0:
 		write_videofile(temp_img_dir, results_dir)
 
-	make_density_plot(results_dir, 15)
+	#make_density_plot(results_dir, 15)
 	cleanup(results_dir)
 
 
